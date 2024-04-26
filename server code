@@ -1,0 +1,95 @@
+#include <iostream>
+#include <fstream>
+#include <cstring>
+#include <cstdlib>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+
+#define PORT 8080
+
+// Caesar cipher encryption function
+std::string encryptCaesarCipher(const std::string& message, int shift) {
+    std::string encryptedMessage = "";
+    for (char character : message) {
+        if (isalpha(character)) {
+            char shiftedChar = character + shift;
+            if (isupper(character) && shiftedChar > 'Z') {
+                shiftedChar = 'A' + (shiftedChar - 'Z' - 1);
+            } else if (islower(character) && shiftedChar > 'z') {
+                shiftedChar = 'a' + (shiftedChar - 'z' - 1);
+            }
+            encryptedMessage += shiftedChar;
+        } else {
+            encryptedMessage += character; // Keep non-alphabetic characters unchanged
+        }
+    }
+    return encryptedMessage;
+}
+
+// Function to authenticate user
+bool authenticateUser(const std::string& username, const std::string& password) {
+    if (username == "Omar" && password == "biba123") {
+        return true;
+    }
+    return false;
+}
+
+int main() {
+    int serverSocket, clientSocket;
+    struct sockaddr_in serverAddr, clientAddr;
+    char buffer[1024] = {0};
+    std::ofstream outputFile("messages.txt");
+
+    // Create a socket
+    if ((serverSocket = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
+        perror("Socket creation failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Initialize server address structure
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_addr.s_addr = INADDR_ANY;
+    serverAddr.sin_port = htons(PORT);
+
+    // Bind the socket to the server address
+    if (bind(serverSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0) {
+        perror("Bind failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Listen for incoming connections
+    if (listen(serverSocket, 3) < 0) {
+        perror("Listen failed");
+        exit(EXIT_FAILURE);
+    }
+
+    std::cout << "Server listening on port " << PORT << std::endl;
+
+    socklen_t clientAddrLen = sizeof(clientAddr);
+
+    // Accept incoming connection
+    if ((clientSocket = accept(serverSocket, (struct sockaddr *)&clientAddr, &clientAddrLen)) < 0) {
+        perror("Accept failed");
+        exit(EXIT_FAILURE);
+    }
+
+    std::cout << "Connection accepted from " << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << std::endl;
+
+    // Receive username and password from client
+    std::string username, password;
+    recv(clientSocket, buffer, sizeof(buffer), 0);
+    username = buffer;
+    recv(clientSocket, buffer, sizeof(buffer), 0);
+    password = buffer;
+
+    // Authenticate user
+    if (!authenticateUser(username, password)) {
+        std::cout << "Invalid username or password. Authentication failed." << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    while (true) {
+        // Receive data from client
+        int bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
+        if (
